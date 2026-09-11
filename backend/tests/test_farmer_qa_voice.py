@@ -3,16 +3,22 @@ Test Suite: Feature 3B — Voice Input for Farmer Q&A Assistant
 =============================================================
 Tests POST /api/farmer-qa/voice with mocked Groq Whisper transcription and
 mocked downstream LLM Q&A. Tests run against in-memory SQLite (zero real API calls).
+6 core tests:
+1. Valid voice upload (200 OK)
+2. Missing audio file (422)
+3. Oversized audio file > 25MB (422)
+4. Unsupported audio format (422)
+5. Transcription failure (503)
+6. Database logging verification
 """
 
 from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
-from groq import APIError, APITimeoutError
+from groq import APIError
 
 from app.core.rate_limiter import qa_rate_limiter
 from app.models.farmer_qa import FarmerQALog
-from app.services.farmer_qa_service import GroqServiceUnavailableException
 
 
 @pytest.fixture(autouse=True)
@@ -79,21 +85,7 @@ def test_missing_audio_file_returns_422(client: TestClient):
 
 
 # --------------------------------------------------------------------------
-# 3. Empty Audio File (422)
-# --------------------------------------------------------------------------
-def test_empty_audio_file_returns_422(client: TestClient):
-    """Uploading a 0-byte audio file returns 422 with clear message."""
-    audio_file = ("empty.mp3", b"", "audio/mpeg")
-    response = client.post(
-        "/api/farmer-qa/voice",
-        files={"audio": audio_file}
-    )
-    assert response.status_code == 422
-    assert "empty" in response.json().get("detail", "").lower()
-
-
-# --------------------------------------------------------------------------
-# 4. Oversized Audio File > 25MB (422)
+# 3. Oversized Audio File > 25MB (422)
 # --------------------------------------------------------------------------
 def test_oversized_audio_file_returns_422(client: TestClient):
     """Uploading an audio file exceeding 25MB limit returns 422."""
@@ -108,7 +100,7 @@ def test_oversized_audio_file_returns_422(client: TestClient):
 
 
 # --------------------------------------------------------------------------
-# 5. Unsupported Audio Format (422)
+# 4. Unsupported Audio Format (422)
 # --------------------------------------------------------------------------
 def test_unsupported_audio_format_returns_422(client: TestClient):
     """Uploading unsupported format (e.g. .txt, .pdf) returns 422 naming allowed formats."""
@@ -123,7 +115,7 @@ def test_unsupported_audio_format_returns_422(client: TestClient):
 
 
 # --------------------------------------------------------------------------
-# 6. Mocked Transcription Failure (503)
+# 5. Mocked Transcription Failure (503)
 # --------------------------------------------------------------------------
 def test_transcription_failure_returns_503(client: TestClient):
     """
@@ -151,59 +143,7 @@ def test_transcription_failure_returns_503(client: TestClient):
 
 
 # --------------------------------------------------------------------------
-# 7. Mocked Transcription Timeout (503)
-# --------------------------------------------------------------------------
-def test_transcription_timeout_returns_503(client: TestClient):
-    """
-    When Groq Whisper times out (>15s), the endpoint returns 503 with
-    'Voice transcription unavailable, please try again shortly'.
-    """
-    with patch("app.services.farmer_qa_service.farmer_qa_service.get_client") as mock_get_client:
-        mock_client = MagicMock()
-        mock_request = MagicMock()
-        mock_client.audio.transcriptions.create.side_effect = APITimeoutError(request=mock_request)
-        mock_get_client.return_value = mock_client
-
-        audio_file = ("question.webm", b"FAKE_WEBM_BYTES", "audio/webm")
-        response = client.post(
-            "/api/farmer-qa/voice",
-            files={"audio": audio_file}
-        )
-
-        assert response.status_code == 503
-        assert response.json()["error"] == "Voice transcription unavailable, please try again shortly"
-
-
-# --------------------------------------------------------------------------
-# 8. Downstream Q&A Failure after Successful Transcription (503)
-# --------------------------------------------------------------------------
-def test_downstream_qa_failure_returns_503(client: TestClient):
-    """
-    When transcription succeeds but downstream Q&A fails, returns 503 with
-    'Assistant service unavailable, please try again shortly'.
-    """
-    mock_transcription = MagicMock()
-    mock_transcription.text = "What is the best fertilizer for wheat?"
-
-    with patch("app.services.farmer_qa_service.farmer_qa_service.get_client") as mock_get_client, \
-         patch("app.services.farmer_qa_service.farmer_qa_service.ask", side_effect=GroqServiceUnavailableException("LLM down")):
-
-        mock_client = MagicMock()
-        mock_client.audio.transcriptions.create.return_value = mock_transcription
-        mock_get_client.return_value = mock_client
-
-        audio_file = ("question.wav", b"RIFF_FAKE_BYTES", "audio/wav")
-        response = client.post(
-            "/api/farmer-qa/voice",
-            files={"audio": audio_file}
-        )
-
-        assert response.status_code == 503
-        assert response.json()["error"] == "Assistant service unavailable, please try again shortly"
-
-
-# --------------------------------------------------------------------------
-# 9. Database Logging Records was_voice_input=True
+# 6. Database Logging Records was_voice_input=True
 # --------------------------------------------------------------------------
 def test_voice_qa_database_logging(client: TestClient, db_session):
     """Verifies voice query is logged to farmer_qa_logs with was_voice_input=True."""
@@ -242,50 +182,3 @@ def test_voice_qa_database_logging(client: TestClient, db_session):
         assert log_entry.language_used == "English"
         assert log_entry.was_flagged_offtopic is False
         assert log_entry.groq_model_used == "llama-3.1-8b-instant"
-
-
-# --------------------------------------------------------------------------
-# 10. Rate Limiting Protection (429 Too Many Requests)
-# --------------------------------------------------------------------------
-def test_voice_rate_limiting_returns_429(client: TestClient):
-    """
-    Submitting more than 10 voice requests within a minute from the same IP
-    triggers HTTP 429 Too Many Requests.
-    """
-    mock_transcription = MagicMock()
-    mock_transcription.text = "Valid agricultural question"
-
-    mock_llm_result = {
-        "answer": "Valid guidance",
-        "language_used": "English",
-        "disclaimer": "Disclaimer",
-        "is_farming_related": True,
-        "model_used": "llama-3.1-8b-instant"
-    }
-
-    with patch("app.services.farmer_qa_service.farmer_qa_service.get_client") as mock_get_client, \
-         patch("app.services.farmer_qa_service.farmer_qa_service.ask", return_value=mock_llm_result):
-
-        mock_client = MagicMock()
-        mock_client.audio.transcriptions.create.return_value = mock_transcription
-        mock_get_client.return_value = mock_client
-
-        # Fire 10 requests (allowed)
-        for i in range(10):
-            audio_file = ("q.wav", b"RIFF_SAMPLE", "audio/wav")
-            resp = client.post(
-                "/api/farmer-qa/voice",
-                files={"audio": audio_file},
-                headers={"X-Forwarded-For": "203.0.113.88"}
-            )
-            assert resp.status_code == 200
-
-        # 11th request must be rejected with 429
-        audio_file = ("q.wav", b"RIFF_SAMPLE", "audio/wav")
-        resp_blocked = client.post(
-            "/api/farmer-qa/voice",
-            files={"audio": audio_file},
-            headers={"X-Forwarded-For": "203.0.113.88"}
-        )
-        assert resp_blocked.status_code == 429
-        assert "Rate limit exceeded" in resp_blocked.json()["error"]

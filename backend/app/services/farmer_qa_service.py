@@ -8,10 +8,11 @@ farming-scoped agricultural guidance with robust JSON parsing fallback and expli
 import json
 import re
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from groq import Groq, APIError, APITimeoutError, APIConnectionError
 
 from app.core.config import settings
+from app.core.constants import MAX_CONVERSATION_HISTORY, MAX_HISTORY_ANSWER_LENGTH
 
 logger = logging.getLogger("fasalsetu_qa_service")
 
@@ -191,13 +192,43 @@ class FarmerQAService:
             logger.error(f"Unexpected error during audio transcription: {exc}", exc_info=True)
             raise GroqTranscriptionUnavailableException("Audio transcription failed") from exc
 
-    def ask(self, question: str, language_hint: Optional[str] = None) -> Dict[str, Any]:
+    def ask(
+        self,
+        question: str,
+        language_hint: Optional[str] = None,
+        history: Optional[List[Dict[str, str]]] = None
+    ) -> Dict[str, Any]:
         """
         Sends user question to Groq LLM with a 15-second timeout and returns structured response.
+        If history is provided, loops over entries (up to MAX_CONVERSATION_HISTORY) in oldest-to-newest
+        order, formatting each as 'Previous Question / Previous Answer' pairs, and prepending them
+        to the prompt context.
         """
-        user_prompt = f"Farmer's Question: {question.strip()}"
+        history_blocks = []
+        if history:
+            # Enforce maximum history cap of MAX_CONVERSATION_HISTORY (last N turns)
+            # and format each entry in oldest-to-newest order
+            selected_history = history[-MAX_CONVERSATION_HISTORY:]
+            for turn in selected_history:
+                q = turn.get("question", "").strip()
+                a = turn.get("answer", "").strip()
+                if len(a) > MAX_HISTORY_ANSWER_LENGTH:
+                    a = a[:MAX_HISTORY_ANSWER_LENGTH] + "..."
+                history_blocks.append(f"Previous Question: {q}\nPrevious Answer: {a}")
+
+        if history_blocks:
+            history_str = "\n\n".join(history_blocks)
+            user_prompt = (
+                f"Recent Conversation Context:\n"
+                f"{history_str}\n\n"
+                f"Current Farmer's Question: {question.strip()}"
+            )
+        else:
+            user_prompt = f"Farmer's Question: {question.strip()}"
+
         if language_hint and language_hint.strip():
             user_prompt += f"\nPreferred Language: {language_hint.strip()}"
+
 
         try:
             client = self.get_client()

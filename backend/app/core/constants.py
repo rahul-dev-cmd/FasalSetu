@@ -33,3 +33,7 @@ VALID_CROPS: Tuple[str, ...] = (
 )
 
 VALID_CROPS_SET: FrozenSet[str] = frozenset(VALID_CROPS)
+
+# Feature 4: Conversational Follow-ups settings
+MAX_CONVERSATION_HISTORY: int = 3
+MAX_HISTORY_ANSWER_LENGTH: int = 300

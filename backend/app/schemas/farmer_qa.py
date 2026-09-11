@@ -19,6 +19,11 @@ class FarmerQARequest(BaseModel):
         description="Optional language hint (e.g. 'hindi', 'english', 'bengali', 'tamil', 'marathi', 'punjabi', 'gujarati'). If omitted, language is automatically detected.",
         examples=["hindi", "english"]
     )
+    session_id: Optional[str] = Field(
+        None,
+        description="Optional session UUID for conversational follow-ups. If omitted, a new session is started.",
+        examples=["550e8400-e29b-41d4-a716-446655440000"]
+    )
 
     @field_validator("question")
     @classmethod
@@ -32,7 +37,8 @@ class FarmerQARequest(BaseModel):
         "json_schema_extra": {
             "example": {
                 "question": "टमाटर में फल छेदक कीट की रोकथाम कैसे करें?",
-                "language": "hindi"
+                "language": "hindi",
+                "session_id": "550e8400-e29b-41d4-a716-446655440000"
             }
         }
     }
@@ -43,6 +49,7 @@ class FarmerQAResponse(BaseModel):
     language_used: str = Field(..., description="Language used for the response (e.g. 'Hindi', 'English')")
     disclaimer: str = Field(..., description="Standard advisory disclaimer")
     is_farming_related: bool = Field(..., description="True if the question is agricultural; False if off-topic")
+    session_id: str = Field(..., description="Session identifier for chaining follow-up questions")
 
     model_config = {
         "json_schema_extra": {
@@ -50,7 +57,8 @@ class FarmerQAResponse(BaseModel):
                 "answer": "टमाटर में फल छेदक कीट के नियंत्रण के लिए नीम तेल (5 मिली प्रति लीटर पानी) का छिड़काव करें और फेरोमोन ट्रैप लगाएं।",
                 "language_used": "Hindi",
                 "disclaimer": "यह सामान्य कृषि सलाह है। गंभीर समस्या पर अपने नजदीकी कृषि विज्ञान केंद्र (KVK) या कृषि विशेषज्ञ से संपर्क करें।",
-                "is_farming_related": True
+                "is_farming_related": True,
+                "session_id": "550e8400-e29b-41d4-a716-446655440000"
             }
         }
     }
@@ -62,6 +70,7 @@ class FarmerVoiceQAResponse(BaseModel):
     language_used: str = Field(..., description="Language used for the response (e.g. 'Hindi', 'English')")
     disclaimer: str = Field(..., description="Standard advisory disclaimer")
     is_farming_related: bool = Field(..., description="True if the question is agricultural; False if off-topic")
+    session_id: str = Field(..., description="Session identifier for chaining follow-up questions")
 
     model_config = {
         "json_schema_extra": {
@@ -70,8 +79,10 @@ class FarmerVoiceQAResponse(BaseModel):
                 "answer": "टमाटर में फल छेदक (Fruit Borer) कीट के नियंत्रण के लिए नीम तेल (5 मिली प्रति लीटर पानी) का छिड़काव करें और फेरोमोन ट्रैप लगाएं।",
                 "language_used": "Hindi",
                 "disclaimer": "अस्वीकरण: यह सामान्य कृषि सलाह है। गंभीर कीट प्रकोप या रासायनिक उपयोग से पहले कृपया अपने नजदीकी कृषि विज्ञान केंद्र (KVK) से परामर्श लें।",
-                "is_farming_related": True
+                "is_farming_related": True,
+                "session_id": "550e8400-e29b-41d4-a716-446655440000"
             }
         }
     }
+
 

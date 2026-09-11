@@ -25,10 +25,12 @@ class FarmerQALog(Base):
     was_flagged_offtopic = Column(Boolean, default=False, nullable=False, index=True)
     groq_model_used = Column(String(100), nullable=False)
     was_voice_input = Column(Boolean, default=False, nullable=False, index=True)
+    session_id = Column(String(64), nullable=True, index=True)
 
     def __repr__(self):
         return (
-            f"<FarmerQALog(id={self.id}, lang='{self.language_used}', "
-            f"voice={self.was_voice_input}, offtopic={self.was_flagged_offtopic}, "
-            f"model='{self.groq_model_used}')>"
+            f"<FarmerQALog(id={self.id}, session='{self.session_id}', "
+            f"lang='{self.language_used}', voice={self.was_voice_input}, "
+            f"offtopic={self.was_flagged_offtopic}, model='{self.groq_model_used}')>"
         )
+
