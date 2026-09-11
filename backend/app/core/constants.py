@@ -37,3 +37,7 @@ VALID_CROPS_SET: FrozenSet[str] = frozenset(VALID_CROPS)
 # Feature 4: Conversational Follow-ups settings
 MAX_CONVERSATION_HISTORY: int = 3
 MAX_HISTORY_ANSWER_LENGTH: int = 300
+
+# Feature 5: Image-based Crop Diagnosis settings
+ALLOWED_IMAGE_EXTENSIONS: FrozenSet[str] = frozenset([".jpg", ".jpeg", ".png", ".webp"])
+MAX_IMAGE_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB maximum upload size

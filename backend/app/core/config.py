@@ -23,10 +23,11 @@ class Settings(BaseSettings):
     # CORS settings - allow all origins for dev/frontend integration
     CORS_ORIGINS: Union[List[str], str] = ["*"]
 
-    # Groq API configuration for Feature 3 (Farmer Q&A Assistant) & Feature 3B (Voice Input)
+    # Groq API configuration for Feature 3 (Farmer Q&A Assistant), 3B (Voice), and 5 (Crop Diagnosis)
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     GROQ_WHISPER_MODEL: str = "whisper-large-v3-turbo"
+    GROQ_VISION_MODEL: str = "qwen/qwen3.6-27b"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
