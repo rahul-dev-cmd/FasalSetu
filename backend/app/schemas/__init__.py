@@ -12,7 +12,8 @@ from app.schemas.market_price import (
 )
 from app.schemas.farmer_qa import (
     FarmerQARequest,
-    FarmerQAResponse
+    FarmerQAResponse,
+    FarmerVoiceQAResponse
 )
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "MarketPriceItem",
     "MarketPriceResponse",
     "FarmerQARequest",
-    "FarmerQAResponse"
+    "FarmerQAResponse",
+    "FarmerVoiceQAResponse"
 ]

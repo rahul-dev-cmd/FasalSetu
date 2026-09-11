@@ -21,7 +21,29 @@ class GroqServiceUnavailableException(Exception):
     pass
 
 
+class GroqTranscriptionUnavailableException(Exception):
+    """Raised when Groq Whisper speech-to-text is unreachable, times out, or fails."""
+    pass
+
+
+WHISPER_LANGUAGE_CODES = {
+    "hindi": "hi",
+    "english": "en",
+    "bengali": "bn",
+    "tamil": "ta",
+    "telugu": "te",
+    "marathi": "mr",
+    "gujarati": "gu",
+    "punjabi": "pa",
+    "kannada": "kn",
+    "malayalam": "ml",
+    "urdu": "ur",
+    "odia": "or"
+}
+
+
 SYSTEM_PROMPT = """You are FasalSetu's Farmer Q&A Assistant, an AI agricultural advisory expert designed specifically for Indian farmers.
+
 
 CORE DIRECTIVES:
 1. TOPIC SCOPE: You answer ONLY questions related to agriculture, farming, crops, seeds, plant protection, pest & disease control, soil health, irrigation, fertilizers, organic farming, weather impact, and livestock/farm animal management.
@@ -90,9 +112,15 @@ def parse_model_json(raw_text: str) -> Dict[str, Any]:
 class FarmerQAService:
     """Manages interactions with Groq API for agricultural question answering."""
 
-    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        whisper_model: Optional[str] = None
+    ):
         self.api_key = api_key or settings.GROQ_API_KEY
         self.model = model or settings.GROQ_MODEL
+        self.whisper_model = whisper_model or settings.GROQ_WHISPER_MODEL
         self._client: Optional[Groq] = None
 
     def get_client(self) -> Groq:
@@ -102,6 +130,66 @@ class FarmerQAService:
             # Explicit timeout of 15 seconds as specified in requirements
             self._client = Groq(api_key=self.api_key, timeout=15.0)
         return self._client
+
+    def transcribe_audio(
+        self,
+        file_bytes: bytes,
+        filename: str,
+        language_hint: Optional[str] = None
+    ) -> str:
+        """
+        Transcribes audio bytes via Groq's Whisper endpoint (whisper-large-v3-turbo)
+        with an explicit 15-second timeout.
+        Returns the transcribed text or raises GroqTranscriptionUnavailableException.
+        """
+        try:
+            client = self.get_client()
+        except GroqServiceUnavailableException as exc:
+            logger.error(f"Cannot transcribe audio: {exc}")
+            raise GroqTranscriptionUnavailableException("Groq client unavailable for transcription") from exc
+
+        # Resolve optional language hint to ISO-639-1 code if known
+        iso_lang = None
+        if language_hint and language_hint.strip():
+            hint_clean = language_hint.strip().lower()
+            iso_lang = WHISPER_LANGUAGE_CODES.get(hint_clean, hint_clean if len(hint_clean) == 2 else None)
+
+        try:
+            logger.info(
+                f"Transcribing audio '{filename}' ({len(file_bytes)} bytes) using Whisper model '{self.whisper_model}' "
+                f"with 15s timeout, language_hint='{iso_lang}'"
+            )
+
+            kwargs: Dict[str, Any] = {
+                "model": self.whisper_model,
+                "file": (filename, file_bytes),
+                "response_format": "json",
+                "timeout": 15.0  # Explicit 15-second request timeout
+            }
+            if iso_lang:
+                kwargs["language"] = iso_lang
+
+            transcription = client.audio.transcriptions.create(**kwargs)
+            transcribed_text = (getattr(transcription, "text", "") or "").strip()
+
+            if not transcribed_text:
+                logger.warning(f"Whisper transcription returned empty text for '{filename}'")
+                raise GroqTranscriptionUnavailableException("Empty transcription returned from audio")
+
+            logger.info(f"Transcription successful for '{filename}': '{transcribed_text[:80]}...'")
+            return transcribed_text
+
+        except (APITimeoutError, TimeoutError) as exc:
+            logger.error(f"Groq Whisper transcription timed out after 15 seconds: {exc}")
+            raise GroqTranscriptionUnavailableException("Groq Whisper transcription timed out") from exc
+        except (APIConnectionError, APIError) as exc:
+            logger.error(f"Groq Whisper API error: {exc}")
+            raise GroqTranscriptionUnavailableException("Groq Whisper transcription service unavailable") from exc
+        except GroqTranscriptionUnavailableException:
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error during audio transcription: {exc}", exc_info=True)
+            raise GroqTranscriptionUnavailableException("Audio transcription failed") from exc
 
     def ask(self, question: str, language_hint: Optional[str] = None) -> Dict[str, Any]:
         """

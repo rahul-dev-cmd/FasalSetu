@@ -1,7 +1,7 @@
 # FasalSetu Backend
 
 > **AI-Powered Agricultural Decision Platform for Indian Farmers**  
-> Hackathon MVP — Feature 1: Crop Recommendation | Feature 2: Market Price Comparison | Feature 3: Farmer Q&A Assistant
+> Hackathon MVP — Feature 1: Crop Recommendation | Feature 2: Market Price Comparison | Feature 3: Farmer Q&A Assistant | Feature 3B: Voice Input Q&A
 
 ---
 
@@ -11,6 +11,7 @@
 1. **Crop Recommendation Engine**: Analyzes soil nutrients (Nitrogen, Phosphorus, Potassium) and local climate metrics (Temperature, Humidity, Soil pH, Rainfall) before planting to recommend the top crop + alternatives with statistical confidence.
 2. **Market Price Comparison Engine**: Enables farmers to compare live/recent commodity prices across nearby agricultural mandis (markets) for any of the 22 supported crops, filter by state (case-insensitively), and identify the market offering the best return.
 3. **Farmer Q&A Assistant**: Single-turn regional-language question answering endpoint powered by Groq's high-speed inference (`llama-3.1-8b-instant`). Farmers can ask pest control, sowing timing, fertilizer usage, and general crop care questions in Hindi, English, and regional languages and receive immediate, structured advice in the same language with safety disclaimers.
+4. **Voice Input for Farmer Q&A (Feature 3B)**: Enables farmers to submit voice recordings (`.m4a`, `.mp3`, `.wav`, `.webm`) of their questions instead of typing. Transcribed using Groq Whisper (`whisper-large-v3-turbo`) with an explicit 15-second timeout, then answered by the Q&A engine in the farmer's language with safety disclaimers.
 
 ---
 
@@ -42,7 +43,7 @@ docker-compose up --build
 - **Production & Hackathon Demo**: The application connects to **PostgreSQL** (`postgresql://postgres:postgres@db:5432/fasalsetu_db`).
 - **SQLite Usage Boundary**: SQLite is **strictly isolated to the automated test suite** (`tests/conftest.py`) using in-memory sessions (`sqlite:///:memory:`). Tests NEVER touch or modify the PostgreSQL database.
 - **Local Development without Docker**: If running locally on host Python, you can point to local PostgreSQL or set `DATABASE_URL=sqlite:///./fasalsetu_dev.db` in your local `.env`.
-- **Groq API Configuration**: Set `GROQ_API_KEY` in `.env` to enable the Farmer Q&A Assistant. Automated tests mock all Groq client calls and do not consume credits or require a live key.
+- **Groq API Configuration**: Set `GROQ_API_KEY` in `.env` to enable the Farmer Q&A Assistant and Whisper Voice Transcription. Automated tests mock all Groq client calls and do not consume credits or require a live key.
 
 ---
 
@@ -260,7 +261,7 @@ If the user asks an unrelated question (e.g. `"Who won the cricket match?"`), th
 To protect Groq API quota, an in-memory sliding window rate limiter restricts each client IP to **10 requests per minute**:
 ```json
 {
-  "detail": "Rate limit exceeded. Maximum 10 questions per minute."
+  "error": "Rate limit exceeded. Maximum 10 requests per minute allowed. Please wait before asking another question."
 }
 ```
 
@@ -268,7 +269,7 @@ To protect Groq API quota, an in-memory sliding window rate limiter restricts ea
 If Groq API times out (15s timeout enforced), is unreachable, or returns malformed response, the endpoint returns:
 ```json
 {
-  "detail": "Assistant service unavailable, please try again shortly"
+  "error": "Assistant service unavailable, please try again shortly"
 }
 ```
 
@@ -290,6 +291,96 @@ curl -X POST http://localhost:8000/api/farmer-qa \
   -d '{
     "question": "What is the best time to sow wheat in North India?"
   }'
+```
+
+---
+
+### 5. Voice Input for Farmer Q&A (Feature 3B)
+Allows farmers to upload a voice recording (`.m4a`, `.mp3`, `.wav`, `.webm`) of their question. The recording is transcribed via Groq Whisper (`whisper-large-v3-turbo`) with a 15-second timeout, and the transcribed query is answered by the Q&A engine.
+
+- **Method**: `POST`
+- **Path**: `/api/farmer-qa/voice`
+- **Content-Type**: `multipart/form-data`
+
+#### Request Form Specification:
+| Field | Type | Required | Constraints | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `audio` | File (Binary) | **Yes** | Max 25 MB; `.m4a`, `.mp3`, `.wav`, `.webm` | Voice recording of farmer's question |
+| `language` | String | No | — | Optional language hint (e.g. `hindi`, `english`) |
+
+#### Success Response (200 OK):
+```json
+{
+  "transcribed_question": "टमाटर में फल छेदक कीट का उपचार क्या है?",
+  "answer": "टमाटर में फल छेदक (Fruit Borer) कीट के नियंत्रण के लिए नीम तेल (5 मिली प्रति लीटर पानी) का छिड़काव करें और फेरोमोन ट्रैप लगाएं।",
+  "language_used": "Hindi",
+  "disclaimer": "अस्वीकरण: यह सामान्य कृषि सलाह है। गंभीर समस्या पर अपने नजदीकी कृषि विज्ञान केंद्र (KVK) या कृषि विशेषज्ञ से संपर्क करें।",
+  "is_farming_related": true
+}
+```
+
+#### Validation Errors (422 Unprocessable Content):
+- **Missing File**:
+  ```json
+  {
+    "detail": "Audio file is required. Please provide a recording in m4a, mp3, wav, or webm format."
+  }
+  ```
+- **Empty File**:
+  ```json
+  {
+    "detail": "Audio file is empty. Please provide a valid recording."
+  }
+  ```
+- **Oversized File (> 25MB)**:
+  ```json
+  {
+    "detail": "Audio file exceeds maximum size limit of 25MB (uploaded: 26215424 bytes)"
+  }
+  ```
+- **Unsupported Format**:
+  ```json
+  {
+    "detail": "Unsupported audio format '.txt'. Allowed formats: m4a, mp3, wav, webm"
+  }
+  ```
+
+#### Error Handling (503 Service Unavailable):
+- **Transcription Failure / Timeout (>15s)**:
+  ```json
+  {
+    "error": "Voice transcription unavailable, please try again shortly"
+  }
+  ```
+- **Downstream Q&A Failure / Timeout**:
+  ```json
+  {
+    "error": "Assistant service unavailable, please try again shortly"
+  }
+  ```
+
+#### Rate Limiting (429 Too Many Requests):
+Rate limited to 10 requests per minute per IP:
+```json
+{
+  "error": "Rate limit exceeded. Maximum 10 requests per minute allowed. Please wait before asking another question."
+}
+```
+
+#### Sample `curl` Commands for Voice Input:
+
+##### 1. Hindi Voice Query (Audio Upload):
+```bash
+curl -X POST http://localhost:8000/api/farmer-qa/voice \
+  -F "audio=@scratch/test_pest_hi.wav" \
+  -F "language=hindi"
+```
+
+##### 2. English Voice Query (Audio Upload):
+```bash
+curl -X POST http://localhost:8000/api/farmer-qa/voice \
+  -F "audio=@scratch/test_wheat_en.wav" \
+  -F "language=english"
 ```
 
 ---
@@ -319,6 +410,13 @@ Both Feature 1 and Feature 2 import from the single source of truth: `app/core/c
    - **Prompt Engineering**: Strict agricultural domain constraint, direct answer in user's query language, safety disclaimer
    - **Robustness**: 15s explicit timeout, markdown code-block stripping (` ```json `), and regex fallback to prevent 500 errors
 
+3. **Whisper Voice Transcription (Feature 3B)**:
+   - **Provider**: Groq Cloud API
+   - **Model**: `whisper-large-v3-turbo` (sub-second speech-to-text inference)
+   - **Timeout**: Enforced 15-second request timeout
+   - **Supported Audio**: `.m4a`, `.mp3`, `.wav`, `.webm` (up to 25 MB)
+   - **Multilingual Recognition**: Automatic language detection with optional ISO-639-1 language hint support (Hindi, English, Punjabi, Bengali, Tamil, etc.)
+
 ---
 
 ## 🧪 Running Automated Tests
@@ -329,7 +427,7 @@ The test suite runs with complete test isolation using in-memory SQLite (no Post
 python -m pytest backend/tests -v
 ```
 
-### Verified Test Suite (23 Passing Tests):
+### Verified Test Suite (33 Passing Tests):
 
 #### Feature 1: Crop Recommendation (7 Tests)
 1. `test_health_check` — Verifies `GET /api/health` returns `200` with `{"status": "ok"}`
@@ -360,6 +458,18 @@ python -m pytest backend/tests -v
 22. `test_database_logging_farmer_qa` — Confirms question, answer, language, offtopic flag, and model name are persisted to `farmer_qa_logs`
 23. `test_rate_limiting_returns_429` — Verifies that exceeding 10 requests/minute from the same IP returns `429 Too Many Requests`
 
+#### Feature 3B: Voice Input Q&A (10 Tests)
+24. `test_valid_voice_qa_returns_200` — Verifies valid audio upload transcribes speech, invokes Q&A engine, and returns 200 with `transcribed_question`
+25. `test_missing_audio_file_returns_422` — Verifies request without an audio file returns 422
+26. `test_empty_audio_file_returns_422` — Verifies zero-byte audio file returns 422
+27. `test_oversized_audio_file_returns_422` — Verifies audio file > 25MB returns 422
+28. `test_unsupported_audio_format_returns_422` — Verifies non-audio format (.txt) returns 422 naming allowed formats
+29. `test_transcription_failure_returns_503` — Verifies Groq Whisper error returns clean 503 (`Voice transcription unavailable`)
+30. `test_transcription_timeout_returns_503` — Verifies Groq Whisper 15s timeout returns 503
+31. `test_downstream_qa_failure_returns_503` — Verifies failure during downstream Q&A returns 503 (`Assistant service unavailable`)
+32. `test_voice_qa_database_logging` — Confirms `was_voice_input=True` is recorded in `farmer_qa_logs`
+33. `test_voice_rate_limiting_returns_429` — Verifies 10 requests/minute rate limiter applies to voice endpoint
+
 ---
 
 ## 📁 Repository Structure
@@ -372,16 +482,16 @@ python -m pytest backend/tests -v
 ├── README.md                    # Backend documentation & API contracts
 └── backend/
     ├── Dockerfile               # Production container with build-time ML training
-    ├── requirements.txt         # Pinned production dependencies (including groq)
+    ├── requirements.txt         # Pinned production dependencies (groq, python-multipart, etc.)
     ├── app/
     │   ├── main.py              # FastAPI entrypoint, CORS, lifespan, DB seed
     │   ├── api/
     │   │   ├── health.py        # GET /api/health route
     │   │   ├── crop_recommendation.py  # POST /api/crop-recommendation route (Feature 1)
     │   │   ├── market_price.py  # GET /api/market-prices route (Feature 2)
-    │   │   └── farmer_qa.py     # POST /api/farmer-qa route (Feature 3)
+    │   │   └── farmer_qa.py     # POST /api/farmer-qa & /api/farmer-qa/voice (Features 3 & 3B)
     │   ├── core/
-    │   │   ├── config.py        # Settings via pydantic-settings
+    │   │   ├── config.py        # Settings via pydantic-settings (including GROQ_WHISPER_MODEL)
     │   │   ├── constants.py     # Shared VALID_CROPS constant (single source of truth)
     │   │   ├── database.py      # SQLAlchemy engine & session dependency
     │   │   └── rate_limiter.py  # In-memory sliding window rate limiter (10 req/min)
@@ -390,14 +500,14 @@ python -m pytest backend/tests -v
     │   ├── models/
     │   │   ├── crop_recommendation.py  # CropRecommendationLog DB model
     │   │   ├── market.py        # Market and MarketPrice DB models
-    │   │   └── farmer_qa.py     # FarmerQALog DB model
+    │   │   └── farmer_qa.py     # FarmerQALog DB model (with was_voice_input)
     │   ├── schemas/
     │   │   ├── health.py        # Health response schema
     │   │   ├── crop_recommendation.py  # Crop recommendation schemas
     │   │   ├── market_price.py  # Market price comparison schemas
-    │   │   └── farmer_qa.py     # Farmer Q&A schemas
+    │   │   └── farmer_qa.py     # Farmer Q&A schemas (FarmerQAResponse, FarmerVoiceQAResponse)
     │   ├── services/
-    │   │   └── farmer_qa_service.py # Groq Q&A service (prompt, 15s timeout, JSON fallback)
+    │   │   └── farmer_qa_service.py # Groq Q&A and Whisper transcription service (15s timeouts)
     │   └── ml/
     │       ├── data/
     │       │   └── crop_recommendation.csv # 2,200 row verified dataset
@@ -410,6 +520,8 @@ python -m pytest backend/tests -v
         ├── conftest.py          # Isolated SQLite test fixtures & seed data
         ├── test_crop_recommendation.py     # Feature 1 test suite (7 tests)
         ├── test_market_prices.py           # Feature 2 test suite (7 tests)
-        └── test_farmer_qa.py               # Feature 3 test suite (9 tests)
+        ├── test_farmer_qa.py               # Feature 3 test suite (9 tests)
+        └── test_farmer_qa_voice.py         # Feature 3B test suite (10 tests)
 ```
+
 
