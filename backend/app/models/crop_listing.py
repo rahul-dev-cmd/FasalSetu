@@ -19,7 +19,7 @@ class CropListing(Base):
     __tablename__ = "crop_listings"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    farmer_id = Column(String(100), nullable=False, index=True)
+    farmer_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     crop = Column(String(100), nullable=False, index=True)
     quantity = Column(Float, nullable=False)
     unit = Column(String(20), nullable=False, default="kg")
@@ -27,6 +27,7 @@ class CropListing(Base):
     status = Column(String(30), nullable=False, default="open", index=True)  # open, negotiating, sold, withdrawn
     created_at = Column(DateTime(timezone=True), default=get_utc_now, nullable=False, index=True)
 
+    farmer = relationship("User", foreign_keys=[farmer_id])
     offers = relationship(
         "CropOffer",
         back_populates="listing",
@@ -43,13 +44,14 @@ class CropOffer(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     listing_id = Column(Integer, ForeignKey("crop_listings.id", ondelete="CASCADE"), nullable=False, index=True)
-    buyer_id = Column(String(100), nullable=False, index=True)
+    buyer_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     amount = Column(Float, nullable=False)
     made_by = Column(String(20), nullable=False)  # "farmer" or "buyer"
     status = Column(String(30), nullable=False, default="pending", index=True)  # pending, accepted, rejected, countered
     parent_offer_id = Column(Integer, ForeignKey("crop_offers.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=get_utc_now, nullable=False, index=True)
 
+    buyer = relationship("User", foreign_keys=[buyer_id])
     listing = relationship("CropListing", back_populates="offers")
     parent_offer = relationship("CropOffer", remote_side=[id], backref="counter_offers")
 

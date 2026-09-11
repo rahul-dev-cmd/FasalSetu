@@ -15,7 +15,6 @@ class ListingCreate(BaseModel):
     quantity: float = Field(..., gt=0, description="Quantity for sale (must be greater than 0)")
     unit: str = Field(default="kg", min_length=1, description="Unit of measurement (e.g. kg, quintal, ton)")
     asking_price: float = Field(..., gt=0, description="Total or per-unit asking price in INR (must be greater than 0)")
-    farmer_id: str = Field(..., min_length=1, description="Farmer identifier (e.g. phone number or UUID)")
 
     @field_validator("crop")
     @classmethod
@@ -29,7 +28,6 @@ class ListingCreate(BaseModel):
 class OfferCreate(BaseModel):
     amount: float = Field(..., gt=0, description="Offer amount in INR (must be greater than 0)")
     made_by: Literal["farmer", "buyer"] = Field(..., description="Party making the offer ('farmer' or 'buyer')")
-    buyer_id: str = Field(..., min_length=1, description="Buyer identifier (e.g. phone number or UUID)")
     parent_offer_id: Optional[int] = Field(default=None, description="ID of the previous offer being countered, if applicable")
 
 
@@ -42,7 +40,7 @@ class OfferResponse(BaseModel):
 
     id: int
     listing_id: int
-    buyer_id: str
+    buyer_id: int
     amount: float
     made_by: str
     status: str
@@ -54,7 +52,7 @@ class ListingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    farmer_id: str
+    farmer_id: int
     crop: str
     quantity: float
     unit: str

@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.core.config import settings
+from app.core.config import settings, validate_jwt_secret
 from app.core.database import init_db
 from app.ml.predictor import predictor
 from app.api import api_router
@@ -28,10 +28,14 @@ logger = logging.getLogger("fasalsetu")
 async def lifespan(app: FastAPI):
     """
     Application lifespan context manager:
+    - Verifies security configurations (JWT_SECRET_KEY).
     - Runs database table creation.
     - Loads pre-trained ML model once into memory.
     """
     logger.info("Initializing FasalSetu backend services...")
+
+    # 0. Enforce JWT secret key presence and security
+    validate_jwt_secret(settings.JWT_SECRET_KEY)
     
     # 1. Initialize database schema
     try:

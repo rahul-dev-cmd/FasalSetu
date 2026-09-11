@@ -19,6 +19,12 @@ from app.schemas.feedback import (
     FeedbackSubmitRequest,
     FeedbackResponse
 )
+from app.schemas.auth import (
+    UserSignupRequest,
+    UserLoginRequest,
+    UserResponse,
+    AuthTokenResponse
+)
 
 __all__ = [
     "HealthResponse",
@@ -32,5 +38,9 @@ __all__ = [
     "FarmerQAResponse",
     "FarmerVoiceQAResponse",
     "FeedbackSubmitRequest",
-    "FeedbackResponse"
+    "FeedbackResponse",
+    "UserSignupRequest",
+    "UserLoginRequest",
+    "UserResponse",
+    "AuthTokenResponse"
 ]

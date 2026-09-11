@@ -11,11 +11,16 @@ from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
 from app.core.database import Base, get_db
 import app.models  # Ensure all model tables are registered
 from app.main import app
 from app.ml.predictor import predictor
 from app.db.seed_market_prices import seed_market_prices
+
+# Ensure JWT_SECRET_KEY is valid for isolated test runs
+if not settings.JWT_SECRET_KEY or len(settings.JWT_SECRET_KEY) < 16:
+    settings.JWT_SECRET_KEY = "test-secret-key-for-pytest-execution-only-12345"
 
 # Dedicated in-memory SQLite engine using StaticPool for thread-safe test isolation
 TEST_DATABASE_URL = "sqlite:///:memory:"

@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     GROQ_WHISPER_MODEL: str = "whisper-large-v3-turbo"
     GROQ_VISION_MODEL: str = "qwen/qwen3.6-27b"
 
+    # JWT Authentication configuration for Feature 9
+    # No working default is provided - the application enforces a non-placeholder secret at startup
+    JWT_SECRET_KEY: str = ""
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_DAYS: int = 7
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
@@ -47,3 +53,27 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+KNOWN_INSECURE_JWT_SECRETS = {
+    "",
+    "your_jwt_secret_key_here",
+    "fasalsetu-dev-insecure-jwt-secret-key-change-in-prod",
+    "secret",
+    "changeme",
+    "default",
+    "none"
+}
+
+
+def validate_jwt_secret(secret: str) -> None:
+    """
+    Startup check ensuring JWT_SECRET_KEY is configured and not a known placeholder string.
+    Raises RuntimeError to refuse booting with a public, guessable secret.
+    """
+    cleaned = (secret or "").strip()
+    if not cleaned or cleaned.lower() in KNOWN_INSECURE_JWT_SECRETS or len(cleaned) < 16:
+        raise RuntimeError(
+            "FATAL: JWT_SECRET_KEY is unset, too short (< 16 chars), or set to an insecure placeholder string. "
+            "The application refuses to boot with an insecure secret. "
+            "Please configure a strong, random JWT_SECRET_KEY in your .env file."
+        )

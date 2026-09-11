@@ -4,6 +4,7 @@ from app.models.market import Market, MarketPrice
 from app.models.farmer_qa import FarmerQALog
 from app.models.crop_diagnosis import CropDiagnosisLog
 from app.models.crop_listing import CropListing, CropOffer
+from app.models.user import User
 
 __all__ = [
     "CropRecommendationLog",
@@ -13,4 +14,5 @@ __all__ = [
     "CropDiagnosisLog",
     "CropListing",
     "CropOffer",
+    "User",
 ]
