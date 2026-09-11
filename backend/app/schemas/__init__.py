@@ -15,6 +15,10 @@ from app.schemas.farmer_qa import (
     FarmerQAResponse,
     FarmerVoiceQAResponse
 )
+from app.schemas.feedback import (
+    FeedbackSubmitRequest,
+    FeedbackResponse
+)
 
 __all__ = [
     "HealthResponse",
@@ -26,5 +30,7 @@ __all__ = [
     "MarketPriceResponse",
     "FarmerQARequest",
     "FarmerQAResponse",
-    "FarmerVoiceQAResponse"
+    "FarmerVoiceQAResponse",
+    "FeedbackSubmitRequest",
+    "FeedbackResponse"
 ]

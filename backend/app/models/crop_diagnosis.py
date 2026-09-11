@@ -28,10 +28,13 @@ class CropDiagnosisLog(Base):
     language_used = Column(String(50), nullable=False, index=True)
     disclaimer = Column(Text, nullable=False)
     groq_model_used = Column(String(100), nullable=False)
+    feedback_rating = Column(String(10), nullable=True, index=True)
+    feedback_comment = Column(String(500), nullable=True)
+    feedback_submitted_at = Column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
         return (
             f"<CropDiagnosisLog(id={self.id}, session='{self.session_id}', "
-            f"diagnosis='{self.diagnosis[:30]}...', lang='{self.language_used}', "
-            f"model='{self.groq_model_used}')>"
+            f"diagnosis='{self.diagnosis[:30]}...', feedback='{self.feedback_rating}', "
+            f"lang='{self.language_used}', model='{self.groq_model_used}')>"
         )

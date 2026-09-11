@@ -7,7 +7,7 @@ Configures SQLAlchemy engine, session maker, base model, and DB dependency.
 from typing import Generator
 import os
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from app.core.config import settings
 
@@ -60,4 +60,31 @@ def init_db():
     import app.models  # Ensure all models (CropRecommendationLog, Market, MarketPrice) register
     logger.info("Creating database tables if not present...")
     Base.metadata.create_all(bind=engine)
+
+    # Lightweight column migration for existing SQLite databases
+    if database_url.startswith("sqlite") and database_url != "sqlite:///:memory:":
+        try:
+            with engine.connect() as conn:
+                # Check farmer_qa_logs columns
+                res_qa = conn.execute(text("PRAGMA table_info(farmer_qa_logs)"))
+                qa_cols = [row[1] for row in res_qa.fetchall()]
+                if qa_cols and "feedback_rating" not in qa_cols:
+                    conn.execute(text("ALTER TABLE farmer_qa_logs ADD COLUMN feedback_rating VARCHAR(10)"))
+                    conn.execute(text("ALTER TABLE farmer_qa_logs ADD COLUMN feedback_comment VARCHAR(500)"))
+                    conn.execute(text("ALTER TABLE farmer_qa_logs ADD COLUMN feedback_submitted_at DATETIME"))
+                    conn.commit()
+                    logger.info("Added feedback columns to farmer_qa_logs.")
+
+                # Check crop_diagnosis_logs columns
+                res_diag = conn.execute(text("PRAGMA table_info(crop_diagnosis_logs)"))
+                diag_cols = [row[1] for row in res_diag.fetchall()]
+                if diag_cols and "feedback_rating" not in diag_cols:
+                    conn.execute(text("ALTER TABLE crop_diagnosis_logs ADD COLUMN feedback_rating VARCHAR(10)"))
+                    conn.execute(text("ALTER TABLE crop_diagnosis_logs ADD COLUMN feedback_comment VARCHAR(500)"))
+                    conn.execute(text("ALTER TABLE crop_diagnosis_logs ADD COLUMN feedback_submitted_at DATETIME"))
+                    conn.commit()
+                    logger.info("Added feedback columns to crop_diagnosis_logs.")
+        except Exception as exc:
+            logger.warning(f"Lightweight column migration skipped or failed: {exc}")
+
     logger.info("Database tables verified.")

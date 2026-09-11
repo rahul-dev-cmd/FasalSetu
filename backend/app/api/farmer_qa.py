@@ -106,6 +106,7 @@ def ask_question(
         )
 
         return FarmerQAResponse(
+            log_id=db_log.id,
             answer=result["answer"],
             language_used=result["language_used"],
             disclaimer=result["disclaimer"],
@@ -271,6 +272,7 @@ def ask_question_voice(
         )
 
         return FarmerVoiceQAResponse(
+            log_id=db_log.id,
             transcribed_question=transcribed_text,
             answer=result["answer"],
             language_used=result["language_used"],

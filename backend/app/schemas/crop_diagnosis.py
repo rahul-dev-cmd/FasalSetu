@@ -8,6 +8,11 @@ from pydantic import BaseModel, Field
 
 
 class CropDiagnosisResponse(BaseModel):
+    log_id: int = Field(
+        ...,
+        description="Unique database ID of this crop diagnosis interaction for submitting feedback",
+        examples=[42]
+    )
     diagnosis: str = Field(
         ...,
         description="Identified crop disease, pest infestation, or nutrient deficiency",
@@ -42,6 +47,7 @@ class CropDiagnosisResponse(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
+                "log_id": 42,
                 "diagnosis": "Early Blight (Alternaria solani) in Tomato",
                 "confidence_note": "High confidence based on concentric target-like dark brown spots on the lower leaf surface.",
                 "suggested_treatment": "Spray Mancozeb 75% WP at 2g per liter of water or Copper Oxychloride 50% WP at 3g per liter. Prune severely infected lower leaves.",

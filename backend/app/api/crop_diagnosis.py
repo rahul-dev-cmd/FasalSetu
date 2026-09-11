@@ -141,6 +141,7 @@ def diagnose_crop_image(
         )
 
         return CropDiagnosisResponse(
+            log_id=db_log.id,
             diagnosis=result["diagnosis"],
             confidence_note=result["confidence_note"],
             suggested_treatment=result["suggested_treatment"],

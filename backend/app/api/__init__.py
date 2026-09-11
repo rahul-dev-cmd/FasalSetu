@@ -6,6 +6,7 @@ from app.api.market_price import router as market_price_router
 from app.api.farmer_qa import router as farmer_qa_router
 from app.api.crop_diagnosis import router as crop_diagnosis_router
 from app.api.listing import router as listing_router
+from app.api.feedback import router as feedback_router
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(health_router, tags=["Health"])
@@ -14,5 +15,6 @@ api_router.include_router(market_price_router, tags=["Market Prices"])
 api_router.include_router(farmer_qa_router, tags=["Farmer Q&A Assistant"])
 api_router.include_router(crop_diagnosis_router, tags=["Crop Diagnosis"])
 api_router.include_router(listing_router, tags=["Price Negotiation"])
+api_router.include_router(feedback_router, tags=["Feedback"])
 
 __all__ = ["api_router"]
