@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # CORS settings - allow all origins for dev/frontend integration
     CORS_ORIGINS: Union[List[str], str] = ["*"]
 
+    # Groq API configuration for Feature 3 (Farmer Q&A Assistant)
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

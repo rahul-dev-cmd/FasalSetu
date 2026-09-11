@@ -10,6 +10,10 @@ from app.schemas.market_price import (
     MarketPriceItem,
     MarketPriceResponse
 )
+from app.schemas.farmer_qa import (
+    FarmerQARequest,
+    FarmerQAResponse
+)
 
 __all__ = [
     "HealthResponse",
@@ -18,5 +22,7 @@ __all__ = [
     "CropRecommendationResponse",
     "ErrorResponse",
     "MarketPriceItem",
-    "MarketPriceResponse"
+    "MarketPriceResponse",
+    "FarmerQARequest",
+    "FarmerQAResponse"
 ]
