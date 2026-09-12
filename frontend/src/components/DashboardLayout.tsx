@@ -16,11 +16,12 @@ import {
   Sparkles
 } from 'lucide-react';
 import { theme } from '../theme/tokens';
+import { getStoredLocation } from '../utils/geolocation';
 
 export interface DashboardLayoutProps {
   children: React.ReactNode;
   activeTab?: string;
-  onTabChange?: (tab: string) => void;
+  onTabChange?: (tabId: string) => void;
   unreadAlertsCount?: number;
   farmerName?: string;
   farmerLocation?: string;
@@ -47,6 +48,22 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [activeLocation, setActiveLocation] = useState<string>(() => {
+    const stored = getStoredLocation();
+    return stored ? stored.displayName : farmerLocation;
+  });
+
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail && e.detail.displayName) {
+        setActiveLocation(e.detail.displayName);
+      }
+    };
+    window.addEventListener('fasalsetu_location_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('fasalsetu_location_updated', handleUpdate);
+    };
+  }, []);
 
   // Group 1: Home alone
   const navGroupHome: NavItem[] = [
@@ -378,7 +395,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 {farmerName}
               </div>
               <div className="text-[11px] text-slate-500 truncate">
-                📍 {farmerLocation}
+                📍 {activeLocation}
               </div>
             </div>
           </div>

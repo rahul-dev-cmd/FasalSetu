@@ -15,6 +15,7 @@ import DashboardLayout from '../components/DashboardLayout';
 import { mockFarmerData } from '../data/mockFarmerData';
 import { IrrigationAdvisoryData, mockIrrigationData } from '../data/mockIrrigationData';
 import { advisoryApi } from '../services/api';
+import { getStoredLocation } from '../utils/geolocation';
 
 const mapBackendIrrigation = (res: any): IrrigationAdvisoryData => ({
   soilMoistureLevel: res.soil_moisture_level || 'medium',
@@ -38,14 +39,16 @@ export const WaterIrrigationScreen: React.FC<WaterIrrigationScreenProps> = ({
   forceMobile = false,
 }) => {
   const [advisoryData, setAdvisoryData] = React.useState<IrrigationAdvisoryData>(data);
+  const storedLoc = getStoredLocation();
+  const currentLocationName = storedLoc?.displayName || mockFarmerData.profile.location;
 
   React.useEffect(() => {
     let isMounted = true;
     const fetchLiveAdvisory = async () => {
       try {
         const live = await advisoryApi.getIrrigationAdvisory({
-          latitude: 17.3850,
-          longitude: 78.4867,
+          latitude: storedLoc?.latitude ?? 17.3850,
+          longitude: storedLoc?.longitude ?? 78.4867,
           crop: 'cotton',
           soil_type: 'clay',
         });
@@ -128,7 +131,7 @@ export const WaterIrrigationScreen: React.FC<WaterIrrigationScreenProps> = ({
       }}
       unreadAlertsCount={mockFarmerData.profile.unreadAlertsCount}
       farmerName={mockFarmerData.profile.greetingName}
-      farmerLocation={mockFarmerData.profile.location}
+      farmerLocation={currentLocationName}
       forceMobile={forceMobile}
     >
       {/* Centered Column (~600–700px on desktop) consistent with Screens 4–5 */}
@@ -154,7 +157,12 @@ export const WaterIrrigationScreen: React.FC<WaterIrrigationScreenProps> = ({
               <h1 className="text-[20px] sm:text-[24px] font-bold text-farmText-dark tracking-tight leading-tight">
                 Water & Irrigation
               </h1>
-              <p className="text-xs text-farmText-gray mt-0.5 flex items-center gap-1.5">
+              <p className="text-xs text-farmText-gray mt-0.5 flex items-center gap-1.5 flex-wrap">
+                <span className="flex items-center gap-1 text-slate-700 font-medium">
+                  <MapPin className="w-3 h-3 text-farmNature" />
+                  <span>{currentLocationName}</span>
+                </span>
+                <span className="text-farmBorder font-light">•</span>
                 <span>{fieldZone || 'Farm Moisture Report'}</span>
                 <span className="text-farmBorder font-light">•</span>
                 <span>{lastUpdated || 'Updated recently'}</span>

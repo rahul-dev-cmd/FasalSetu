@@ -23,10 +23,12 @@ import {
   Trash2,
   LocateFixed,
   Compass,
+  Loader2,
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import KisanChatDrawer from '../components/KisanChatDrawer';
 import { mockFarmerData, FarmerDashboardData } from '../data/mockFarmerData';
+import { autoFetchLocation, getStoredLocation } from '../utils/geolocation';
 import { theme } from '../theme/tokens';
 
 export interface FarmerDashboardScreenProps {
@@ -172,6 +174,38 @@ export const FarmerDashboardScreen: React.FC<FarmerDashboardScreenProps> = ({
   const [plotSurvey, setPlotSurvey] = useState<string>('');
   const [isDetectingLocation, setIsDetectingLocation] = useState<boolean>(false);
 
+  // ── Auto GPS Location State ───────────────────────────────────────
+  const [currentLocation, setCurrentLocation] = useState<string>(() => {
+    const stored = getStoredLocation();
+    return stored?.displayName || data.profile.location;
+  });
+  const [isDetectingHomeLocation, setIsDetectingHomeLocation] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail?.displayName) {
+        setCurrentLocation(e.detail.displayName);
+      }
+    };
+    window.addEventListener('fasalsetu_location_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('fasalsetu_location_updated', handleUpdate);
+    };
+  }, []);
+
+  const handleAutoDetectHomeLocation = async () => {
+    setIsDetectingHomeLocation(true);
+    try {
+      const loc = await autoFetchLocation();
+      setCurrentLocation(loc.displayName);
+      showToast(`Location updated: ${loc.displayName}`);
+    } catch (err: any) {
+      showToast('Could not fetch location. Check browser permissions.');
+    } finally {
+      setIsDetectingHomeLocation(false);
+    }
+  };
+
   // ── Toast Feedback State ──────────────────────────────────────────
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -213,7 +247,7 @@ export const FarmerDashboardScreen: React.FC<FarmerDashboardScreenProps> = ({
     setPlotUnit('acres');
     setPlotSoil('Alluvial Soil (जलोढ़)');
     setPlotIrrigation('Tube Well / Borewell (नलकूप)');
-    setPlotLocation(data.profile.location || 'Kothapet, Telangana');
+    setPlotLocation(currentLocation || data.profile.location || 'Kothapet, Telangana');
     setPlotSurvey('');
     setIsPlotModalOpen(true);
   };
@@ -233,32 +267,16 @@ export const FarmerDashboardScreen: React.FC<FarmerDashboardScreenProps> = ({
   };
 
   // Handle GPS location detection for plot
-  const handleDetectLocation = () => {
+  const handleDetectLocation = async () => {
     setIsDetectingLocation(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude.toFixed(2);
-          const lng = pos.coords.longitude.toFixed(2);
-          setPlotLocation(`Ambegaon, Pune (${lat}°N, ${lng}°E)`);
-          setIsDetectingLocation(false);
-          showToast('GPS location acquired');
-        },
-        () => {
-          setTimeout(() => {
-            setPlotLocation('Manchar, Ambegaon, Pune');
-            setIsDetectingLocation(false);
-            showToast('Simulated location set: Manchar, Pune');
-          }, 600);
-        },
-        { timeout: 4000 }
-      );
-    } else {
-      setTimeout(() => {
-        setPlotLocation('Manchar, Ambegaon, Pune');
-        setIsDetectingLocation(false);
-        showToast('Simulated location set: Manchar, Pune');
-      }, 600);
+    try {
+      const loc = await autoFetchLocation();
+      setPlotLocation(loc.displayName);
+      showToast(`GPS location acquired: ${loc.displayName}`);
+    } catch (err) {
+      showToast('Using approximate coordinates');
+    } finally {
+      setIsDetectingLocation(false);
     }
   };
 
@@ -402,7 +420,7 @@ export const FarmerDashboardScreen: React.FC<FarmerDashboardScreenProps> = ({
       }}
       unreadAlertsCount={data.profile.unreadAlertsCount}
       farmerName={data.profile.greetingName}
-      farmerLocation={data.profile.location}
+      farmerLocation={currentLocation}
       forceMobile={forceMobile}
     >
       <div className="space-y-4 sm:space-y-5">
@@ -432,10 +450,26 @@ export const FarmerDashboardScreen: React.FC<FarmerDashboardScreenProps> = ({
               <h1 className="text-[18px] sm:text-[20px] font-bold text-farmText-dark tracking-tight leading-tight truncate">
                 {currentLanguageObj.greeting}, {data.profile.greetingName}
               </h1>
-              <p className="text-xs text-farmText-gray font-normal mt-0.5 flex items-center gap-1 truncate">
-                <span>📍</span>
-                <span className="truncate">{data.profile.location}</span>
-              </p>
+              <div className="text-xs text-farmText-gray font-normal mt-0.5 flex items-center gap-1.5 flex-wrap">
+                <span className="flex items-center gap-1 text-slate-700 font-medium truncate max-w-[200px] sm:max-w-xs">
+                  <span>📍</span>
+                  <span className="truncate">{currentLocation}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAutoDetectHomeLocation}
+                  disabled={isDetectingHomeLocation}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary-dark bg-primary-tint/60 hover:bg-primary-tint px-2 py-0.5 rounded-full border border-primary/20 transition-all cursor-pointer disabled:opacity-50"
+                  title="Auto-detect current GPS location from browser"
+                >
+                  {isDetectingHomeLocation ? (
+                    <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                  ) : (
+                    <LocateFixed className="w-3 h-3 text-primary" />
+                  )}
+                  <span>{isDetectingHomeLocation ? 'Detecting...' : 'Auto-Detect'}</span>
+                </button>
+              </div>
             </div>
           </div>
 

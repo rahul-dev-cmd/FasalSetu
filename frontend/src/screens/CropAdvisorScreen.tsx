@@ -22,7 +22,9 @@ import {
   Check,
   X,
   MapPin,
-  TrendingUp
+  TrendingUp,
+  LocateFixed,
+  Loader2
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { mockFarmerData } from '../data/mockFarmerData';
@@ -34,6 +36,7 @@ import {
 } from '../utils/cropScoring';
 import { CROP_KNOWLEDGE_BASE, CropData } from '../data/cropKnowledgeBase';
 import { advisoryApi } from '../services/api';
+import { autoFetchLocation, getStoredLocation } from '../utils/geolocation';
 
 // Location dataset
 const INDIAN_STATES_DISTRICTS: Record<string, string[]> = {
@@ -118,6 +121,65 @@ export const CropAdvisorScreen: React.FC = () => {
     setTimeout(() => {
       setToastMessage(null);
     }, 3500);
+  };
+
+  // Browser Geolocation auto-detection states
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [locationSuccess, setLocationSuccess] = useState<boolean>(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Initialize with stored location if previously detected
+  React.useEffect(() => {
+    const stored = getStoredLocation();
+    if (stored) {
+      const stateKey = Object.keys(INDIAN_STATES_DISTRICTS).find(
+        (s) => s.toLowerCase() === stored.state.toLowerCase()
+      ) || stored.state;
+      const districtList = INDIAN_STATES_DISTRICTS[stateKey] || [];
+      const matchedDistrict = districtList.find(
+        (d) => d.toLowerCase().includes(stored.district.toLowerCase()) || stored.district.toLowerCase().includes(d.toLowerCase())
+      ) || districtList[0] || stored.district;
+
+      setInputs((prev) => ({
+        ...prev,
+        state: stateKey in INDIAN_STATES_DISTRICTS ? stateKey : prev.state,
+        district: matchedDistrict,
+        village: stored.village || prev.village,
+      }));
+    }
+  }, []);
+
+  const handleAutoDetectLocation = async () => {
+    setIsLocating(true);
+    setLocationError(null);
+    try {
+      const loc = await autoFetchLocation();
+      const stateKey = Object.keys(INDIAN_STATES_DISTRICTS).find(
+        (s) => s.toLowerCase() === loc.state.toLowerCase()
+      ) || loc.state;
+
+      const districtList = INDIAN_STATES_DISTRICTS[stateKey] || [];
+      const matchedDistrict = districtList.find(
+        (d) => d.toLowerCase().includes(loc.district.toLowerCase()) || loc.district.toLowerCase().includes(d.toLowerCase())
+      ) || districtList[0] || loc.district;
+
+      setInputs((prev) => ({
+        ...prev,
+        state: stateKey in INDIAN_STATES_DISTRICTS ? stateKey : prev.state,
+        district: matchedDistrict,
+        village: loc.village || prev.village || 'Near Farm GPS',
+      }));
+
+      setLocationSuccess(true);
+      showToast(`Location detected: ${loc.displayName}`);
+      setTimeout(() => setLocationSuccess(false), 3500);
+    } catch (err: any) {
+      console.warn('Location detection error:', err);
+      setLocationError(err.message || 'Could not fetch location from browser.');
+      showToast(err.message || 'Could not fetch location.');
+    } finally {
+      setIsLocating(false);
+    }
   };
 
   // Step Validation to enable "Next"
@@ -369,6 +431,50 @@ export const CropAdvisorScreen: React.FC = () => {
               </p>
             </div>
 
+            {/* Auto-Detect Location Banner Button */}
+            <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-4 rounded-2xl border border-emerald-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <LocateFixed className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800">Auto-Detect Farmland Location</h4>
+                  <p className="text-xs text-slate-500">Fetch real GPS coordinates & district directly from your browser</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAutoDetectLocation}
+                disabled={isLocating}
+                className="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer select-none shrink-0 disabled:opacity-75"
+              >
+                {isLocating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Fetching GPS...</span>
+                  </>
+                ) : locationSuccess ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                    <span>Location Updated!</span>
+                  </>
+                ) : (
+                  <>
+                    <LocateFixed className="w-4 h-4" />
+                    <span>Use Browser Location</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {locationError && (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>{locationError}</span>
+              </div>
+            )}
+
             <div className="bg-white p-5 sm:p-6 rounded-2xl border border-farmBorder shadow-xs space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">State *</label>
@@ -417,7 +523,7 @@ export const CropAdvisorScreen: React.FC = () => {
 
               <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100 flex items-center gap-2.5 text-xs text-emerald-800 font-medium">
                 <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Defaulted to your saved profile location: {inputs.district}, {inputs.state}.</span>
+                <span>Active Farmland: <strong>{inputs.district}, {inputs.state}</strong>{inputs.village ? ` (${inputs.village})` : ''}</span>
               </div>
             </div>
           </div>
