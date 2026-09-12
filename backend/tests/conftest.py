@@ -17,6 +17,8 @@ import app.models  # Ensure all model tables are registered
 from app.main import app
 from app.ml.predictor import predictor
 from app.db.seed_market_prices import seed_market_prices
+from app.db.seed_risk_map import seed_risk_map_data
+from app.db.seed_reports import seed_reports
 
 # Ensure JWT_SECRET_KEY is valid for isolated test runs
 if not settings.JWT_SECRET_KEY or len(settings.JWT_SECRET_KEY) < 16:
@@ -34,14 +36,16 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
-    """Create all tables in isolated in-memory SQLite database and seed test market data."""
+    """Create all tables in isolated in-memory SQLite database and seed test market data, risk map, and reports."""
     Base.metadata.create_all(bind=test_engine)
     # Ensure predictor model is loaded into memory
     if not predictor.is_loaded():
         predictor.load()
-    # Seed market prices into the test SQLite instance
+    # Seed market prices, risk map, and reports into the test SQLite instance
     with TestingSessionLocal() as session:
         seed_market_prices(session)
+        seed_risk_map_data(session)
+        seed_reports(session)
     yield
     Base.metadata.drop_all(bind=test_engine)
 

@@ -1,0 +1,15 @@
+# FasalSetu - Telangana Agriculture Department Surveillance Report
+# Title: Risk Summary - Jagtial
+# Report Type: Risk Summary
+# District: Jagtial
+# Date Range: Last 60 Days
+# Generated Date: 2025-05-14
+
+# Executive Summary,"Official agricultural surveillance summary for Jagtial. Identified 1 active risk zones directly impacting approximately 11,800 farming families across 11,500.0 hectares, with an estimated aggregate economic risk of INR 21.20 Cr."
+# Key Findings
+# -,Identified 1 active surveillance zones across surveyed mandals requiring close monitoring.
+# -,"Total estimated economic threat stands at INR 21.20 Cr across 11,500.0 ha."
+# -,High-priority containment protocols active; prompt chemical and biological supply distribution advised.
+
+Hotspot ID,District,Crop,Issue Type,Risk Level,Affected Area (ha),Economic Impact (INR Cr),Farmers Impacted,Interventions Count
+3,Jagtial,Cotton,Pink Bollworm Larval Penetration,High,11500.0,21.2,11800,3

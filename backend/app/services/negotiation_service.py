@@ -6,6 +6,7 @@ counters, and final settlement actions (accept/reject).
 """
 
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -13,6 +14,7 @@ from sqlalchemy import desc
 
 from app.models.crop_listing import CropListing, CropOffer
 from app.models.user import User
+from app.models.transaction import Transaction
 from app.schemas.listing import ListingCreate, OfferCreate
 
 logger = logging.getLogger("fasalsetu.negotiation")
@@ -235,6 +237,26 @@ class NegotiationService:
         if clean_action == "accept":
             offer.status = "accepted"
             listing.status = "sold"
+
+            # Feature 17: Auto-create deal transaction status tracker
+            existing_tx = db.query(Transaction).filter(Transaction.listing_id == listing.id).first()
+            if not existing_tx:
+                now = datetime.now(timezone.utc)
+                tx = Transaction(
+                    listing_id=listing.id,
+                    offer_id=offer.id,
+                    farmer_id=listing.farmer_id,
+                    buyer_id=offer.buyer_id,
+                    agreed_price=offer.amount,
+                    pickup_target_date=now + timedelta(days=2),
+                    payment_target_date=now + timedelta(days=6),
+                    logistics_status="active",
+                    payment_status="pending",
+                    overall_status="in_progress",
+                    created_at=now,
+                    updated_at=now,
+                )
+                db.add(tx)
         elif clean_action == "reject":
             offer.status = "rejected"
             listing.status = "open"

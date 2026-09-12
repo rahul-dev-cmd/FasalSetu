@@ -34,6 +34,12 @@ class CropListing(Base):
         cascade="all, delete-orphan",
         order_by="CropOffer.created_at.asc(), CropOffer.id.asc()"
     )
+    transaction = relationship(
+        "Transaction",
+        back_populates="listing",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<CropListing(id={self.id}, farmer='{self.farmer_id}', crop='{self.crop}', status='{self.status}')>"

@@ -21,4 +21,5 @@ env/
 Thumbs.db
 
 # Scratch and temporary testing files
-scratch/
+scratch/frontend/node_modules/
+node_modules/

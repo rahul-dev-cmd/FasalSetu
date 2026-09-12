@@ -10,8 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.api.deps import get_current_user, require_role
+from app.api.deps import get_current_user, require_role, verify_negotiation_party
 from app.models.user import User
+from app.models.crop_listing import CropListing
+from app.models.negotiation_chat import NegotiationChatLog
 from app.schemas.listing import (
     ListingCreate,
     ListingResponse,
@@ -20,7 +22,16 @@ from app.schemas.listing import (
     OfferActionRequest,
     OfferResponse,
 )
+from app.schemas.negotiation_chat import (
+    NegotiationChatRequest,
+    NegotiationChatResponse,
+)
+from app.core.rate_limiter import negotiation_rate_limiter
 from app.services.negotiation_service import negotiation_service
+from app.services.negotiation_advisor_service import (
+    negotiation_advisor_service,
+    GroqNegotiationUnavailableException,
+)
 
 router = APIRouter(prefix="/listings", tags=["Price Negotiation"])
 my_router = APIRouter(prefix="/my", tags=["User Marketplace Views"])
@@ -120,12 +131,100 @@ def act_on_offer(
     - On reject: sets offer status to 'rejected' and listing status to 'open'.
     - Rejects action on stale or non-pending offers (422 Unprocessable Entity).
     """
+    listing = db.query(CropListing).filter(CropListing.id == listing_id).first()
+    if not listing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Listing with id {listing_id} not found."
+        )
+
+    # Shared negotiation party authorization check
+    verify_negotiation_party(listing=listing, current_user=current_user, db=db)
+
     return negotiation_service.handle_offer_action(
         db=db,
         listing_id=listing_id,
         offer_id=offer_id,
         action=payload.action,
         current_user=current_user
+    )
+
+
+@router.post(
+    "/{listing_id}/negotiation-chat",
+    response_model=NegotiationChatResponse,
+    responses={
+        200: {"model": NegotiationChatResponse, "description": "Negotiation guidance returned successfully"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Forbidden: User is not an authorized party to this listing's negotiation"},
+        404: {"description": "Listing not found"},
+        422: {"description": "Validation error in chat message"},
+        429: {"description": "Rate limit exceeded (max 10 requests per minute)"},
+        503: {"description": "Negotiation advisor assistant unavailable"}
+    },
+    summary="Advisory AI chat assistant for active price negotiations"
+)
+def negotiation_chat(
+    listing_id: int,
+    payload: NegotiationChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Provides real-time strategic guidance to farmers and buyers during a crop price negotiation.
+    Grounded in recorded mandi prices (national benchmarks) and the listing's offer history.
+    Advisory-only: never submits, accepts, or rejects offers autonomously.
+    """
+    # 1. Rate limiting protection (10 requests/minute per user)
+    rate_key = f"user_{current_user.id}"
+    allowed, _ = negotiation_rate_limiter.is_allowed(rate_key)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. You can send up to 10 negotiation advisory requests per minute."
+        )
+
+    # 2. Verify listing exists
+    listing = db.query(CropListing).filter(CropListing.id == listing_id).first()
+    if not listing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Listing with id {listing_id} not found."
+        )
+
+    # 3. Verify user is a legitimate party to this negotiation thread
+    verify_negotiation_party(listing=listing, current_user=current_user, db=db)
+
+    # 4. Request advice from the AI advisor service
+    try:
+        reply, market_context_used = negotiation_advisor_service.advise(
+            db=db,
+            listing=listing,
+            user_role=current_user.role,
+            user_id=current_user.id,
+            user_message=payload.message
+        )
+    except GroqNegotiationUnavailableException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Negotiation assistant unavailable, please try again shortly"
+        ) from exc
+
+    # 5. Audit log the advisory interaction
+    chat_log = NegotiationChatLog(
+        listing_id=listing.id,
+        user_id=current_user.id,
+        role=current_user.role,
+        message=payload.message,
+        reply=reply,
+        market_context_used=market_context_used
+    )
+    db.add(chat_log)
+    db.commit()
+
+    return NegotiationChatResponse(
+        reply=reply,
+        market_context_used=market_context_used
     )
 
 

@@ -48,3 +48,6 @@ class InMemoryRateLimiter:
 
 # Global rate limiter instance (10 requests per minute per IP)
 qa_rate_limiter = InMemoryRateLimiter(requests_per_minute=10)
+
+# Global rate limiter instance for AI negotiation advisor (10 requests per minute per user)
+negotiation_rate_limiter = InMemoryRateLimiter(requests_per_minute=10)

@@ -44,14 +44,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Database initialization deferred or skipped: {e}")
 
-    # 2. Seed market prices on first startup if empty
+    # 2. Seed market prices, risk map, and reports on first startup if empty
     try:
         from app.core.database import SessionLocal
         from app.db.seed_market_prices import seed_market_prices
+        from app.db.seed_risk_map import seed_risk_map_data
+        from app.db.seed_reports import seed_reports
+        from app.db.seed_interventions import seed_interventions
         with SessionLocal() as db_session:
             seed_market_prices(db_session)
+            seed_risk_map_data(db_session)
+            seed_reports(db_session)
+            seed_interventions(db_session)
     except Exception as e:
-        logger.warning(f"Market prices seeding deferred or skipped: {e}")
+        logger.warning(f"Database seeding deferred or skipped: {e}")
 
     # 3. Load ML model into memory
     try:

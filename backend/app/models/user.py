@@ -20,7 +20,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     phone = Column(String(15), nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), nullable=False, index=True)  # "farmer" or "buyer"
+    role = Column(String(20), nullable=False, index=True)  # "farmer", "buyer", or "government"
     name = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
 

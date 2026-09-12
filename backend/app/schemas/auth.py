@@ -26,10 +26,10 @@ class UserSignupRequest(BaseModel):
         description="User password (minimum 8 characters)",
         examples=["SecretFarmer123!"]
     )
-    role: Literal["farmer", "buyer"] = Field(
+    role: Literal["farmer", "buyer", "government"] = Field(
         ...,
-        description="User role: 'farmer' or 'buyer'",
-        examples=["farmer", "buyer"]
+        description="User role: 'farmer', 'buyer', or 'government'",
+        examples=["farmer", "buyer", "government"]
     )
     name: Optional[str] = Field(
         None,
@@ -67,10 +67,10 @@ class UserLoginRequest(BaseModel):
         description="User password",
         examples=["SecretFarmer123!"]
     )
-    role: Literal["farmer", "buyer"] = Field(
+    role: Literal["farmer", "buyer", "government"] = Field(
         ...,
-        description="Target role for authentication: 'farmer' or 'buyer'",
-        examples=["farmer", "buyer"]
+        description="Target role for authentication: 'farmer', 'buyer', or 'government'",
+        examples=["farmer", "buyer", "government"]
     )
 
     @field_validator("phone")
