@@ -15,6 +15,7 @@ from sqlalchemy import desc
 from app.models.crop_listing import CropListing, CropOffer
 from app.models.user import User
 from app.models.transaction import Transaction
+from app.models.notification import Notification
 from app.schemas.listing import ListingCreate, OfferCreate
 
 logger = logging.getLogger("fasalsetu.negotiation")
@@ -176,6 +177,21 @@ class NegotiationService:
             parent_offer_id=data.parent_offer_id,
         )
         db.add(new_offer)
+        db.flush()
+
+        # Alert the farmer when a buyer submits an offer
+        if new_offer.made_by == "buyer":
+            buyer_name = current_user.name if current_user.name else f"Buyer {current_user.phone}"
+            price_val = f"{new_offer.amount:g}" if isinstance(new_offer.amount, float) else str(new_offer.amount)
+            alert = Notification(
+                user_id=listing.farmer_id,
+                message=f"New offer received: {buyer_name} offered ₹{price_val} for {listing.crop}.",
+                notification_type="new_offer",
+                related_id=new_offer.id,
+                is_read=False,
+            )
+            db.add(alert)
+
         db.commit()
         db.refresh(new_offer)
         return new_offer
@@ -265,6 +281,17 @@ class NegotiationService:
                 status_code=422,
                 detail=f"Invalid action '{action}'. Action must be 'accept' or 'reject'."
             )
+
+        # Alert the buyer when their offer is accepted or rejected
+        status_word = "accepted" if clean_action == "accept" else "rejected"
+        buyer_alert = Notification(
+            user_id=offer.buyer_id,
+            message=f"Your offer for {listing.crop} was {status_word}.",
+            notification_type="offer_response",
+            related_id=offer.id,
+            is_read=False,
+        )
+        db.add(buyer_alert)
 
         db.commit()
         db.refresh(offer)

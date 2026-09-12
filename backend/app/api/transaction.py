@@ -16,6 +16,7 @@ from app.api.deps import get_current_user, require_role, verify_negotiation_part
 from app.models.user import User
 from app.models.crop_listing import CropListing
 from app.models.transaction import Transaction
+from app.models.notification import Notification
 from app.schemas.transaction import (
     TransactionAdvanceRequest,
     TransactionStage,
@@ -255,6 +256,18 @@ def advance_transaction_stage(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid action '{payload.action}'."
         )
+
+    # Alert the other party in this transaction (not the one who triggered the action)
+    stage_name = "Pickup Confirmed" if payload.action == "confirm_pickup" else "Payment Confirmed"
+    other_party_id = tx.buyer_id if int(current_user.id) == int(tx.farmer_id) else tx.farmer_id
+    tx_alert = Notification(
+        user_id=other_party_id,
+        message=f"{listing.crop.title()} status updated: {stage_name}.",
+        notification_type="transaction_update",
+        related_id=tx.id,
+        is_read=False,
+    )
+    db.add(tx_alert)
 
     db.commit()
     db.refresh(tx)

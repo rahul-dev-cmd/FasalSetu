@@ -12,6 +12,7 @@ from app.models.transaction import Transaction
 from app.models.risk_map import Hotspot, MapMarker, DistrictZone
 from app.models.report import Report
 from app.models.intervention import Intervention
+from app.models.notification import Notification
 
 __all__ = [
     "CropRecommendationLog",
@@ -31,4 +32,5 @@ __all__ = [
     "DistrictZone",
     "Report",
     "Intervention",
+    "Notification",
 ]

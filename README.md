@@ -264,6 +264,63 @@ Here is a quick map of the primary endpoints powering the system:
 - `POST /api/transactions/{id}/confirm-pickup`: Advances deal stage to payment.
 - `POST /api/transactions/{id}/confirm-payment`: Closes deal and completes the transaction.
 
+### 🔔 Notifications & Activity Alerts (Polling-Based)
+Enables farmers and buyers to view activity alerts across negotiation bids, offer acceptance/rejection, and deal lifecycle transitions.
+- `GET /api/notifications`: Returns the authenticated user's notifications (supports optional `?unread_only=true`).
+- `GET /api/notifications/unread-count`: Returns `{ "count": int }` for bell/badge counters.
+- `PATCH /api/notifications/{id}/read`: Marks a single notification as read (returns 404 if unowned or nonexistent).
+- `PATCH /api/notifications/read-all`: Marks all notifications for the authenticated user as read.
+
+#### Trigger Points:
+1. **New Offer Submitted**: Alerts the listing's owning farmer:  
+   *`"New offer received: Kisan Mandi Trader offered ₹2200 for wheat."`* (`notification_type: "new_offer"`)
+2. **Offer Accepted or Rejected**: Alerts the offering buyer:  
+   *`"Your offer for wheat was accepted."`* (`notification_type: "offer_response"`)
+3. **Transaction Stage Advanced**: Alerts the counterparty:  
+   *`"Wheat status updated: Pickup Confirmed."`* (`notification_type: "transaction_update"`)
+
+#### Sample Curl & Responses:
+```bash
+# 1. Check unread notifications count
+curl -X GET http://localhost:8000/api/notifications/unread-count \
+  -H "Authorization: Bearer <FARMER_JWT>"
+
+# Response (200 OK):
+# { "count": 1 }
+
+# 2. Fetch notifications list
+curl -X GET http://localhost:8000/api/notifications \
+  -H "Authorization: Bearer <FARMER_JWT>"
+
+# Response (200 OK):
+# {
+#   "notifications": [
+#     {
+#       "id": 1,
+#       "message": "New offer received: Kisan Mandi Trader offered ₹2200 for wheat.",
+#       "notification_type": "new_offer",
+#       "related_id": 11,
+#       "is_read": false,
+#       "created_at": "2026-09-12T07:44:09.969100Z"
+#     }
+#   ]
+# }
+
+# 3. Mark notification as read
+curl -X PATCH http://localhost:8000/api/notifications/1/read \
+  -H "Authorization: Bearer <FARMER_JWT>"
+
+# Response (200 OK):
+# {
+#   "id": 1,
+#   "message": "New offer received: Kisan Mandi Trader offered ₹2200 for wheat.",
+#   "notification_type": "new_offer",
+#   "related_id": 11,
+#   "is_read": true,
+#   "created_at": "2026-09-12T07:44:09.969100Z"
+# }
+```
+
 ### 🏛️ Government Command Center
 - `GET /api/government/hotspots`: Statewide crop stress and pest severity risk map.
 - `GET /api/government/interventions`: Crisis intervention management and field team logs.

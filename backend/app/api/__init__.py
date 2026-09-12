@@ -16,6 +16,7 @@ from app.api.transaction import router as transaction_router, my_transactions_ro
 from app.api.risk_map import router as risk_map_router
 from app.api.report import router as report_router
 from app.api.intervention import router as intervention_router
+from app.api.notification import router as notification_router
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(health_router, tags=["Health"])
@@ -36,6 +37,7 @@ api_router.include_router(my_transactions_router, tags=["User Marketplace Views"
 api_router.include_router(risk_map_router, tags=["Government Risk Map"])
 api_router.include_router(report_router, tags=["Government Reports"])
 api_router.include_router(intervention_router, tags=["Government Interventions"])
+api_router.include_router(notification_router, tags=["Notifications"])
 
 __all__ = ["api_router"]
 
