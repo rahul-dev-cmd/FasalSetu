@@ -310,23 +310,48 @@ export const buyerProfileApi = {
     request<any>(`/api/buyer-profile/${buyerUserId}`, { method: 'GET' }),
 };
 
+export interface AlternativeCropRecommendation {
+  crop: string;
+  confidence: number;
+}
+
+export interface CropRecommendationResponse {
+  recommended_crop: string;
+  confidence: number;
+  alternatives: AlternativeCropRecommendation[];
+}
+
 // ── Decision Support & Agronomic Engines ──────────────────────────────
 export const advisoryApi = {
   // Irrigation (Feature 12)
   getIrrigationAdvisory: (params: {
     latitude: number;
     longitude: number;
-    crop_type: string;
+    crop?: string;
+    crop_type?: string;
     soil_type?: string;
-  }) => request<any>('/api/irrigation-advisory', { method: 'GET', params }),
+  }) => {
+    const { crop, crop_type, ...rest } = params;
+    return request<any>('/api/irrigation-advisory', {
+      method: 'GET',
+      params: { ...rest, crop: crop || crop_type },
+    });
+  },
 
   // Yield Estimate (Feature 13)
   getYieldEstimate: (params: {
-    crop_name: string;
+    crop?: string;
+    crop_name?: string;
     land_size_acres: number;
     sowing_date: string;
     state?: string;
-  }) => request<any>('/api/yield-estimate', { method: 'GET', params }),
+  }) => {
+    const { crop, crop_name, ...rest } = params;
+    return request<any>('/api/yield-estimate', {
+      method: 'GET',
+      params: { ...rest, crop: crop || crop_name },
+    });
+  },
 
   // Crop Recommendation (Feature 1)
   getCropRecommendation: (payload: {
@@ -338,7 +363,7 @@ export const advisoryApi = {
     ph: number;
     rainfall: number;
   }) =>
-    request<any>('/api/crop-recommendation', {
+    request<CropRecommendationResponse>('/api/crop-recommendation', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
