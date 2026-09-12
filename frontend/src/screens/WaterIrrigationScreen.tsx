@@ -172,7 +172,7 @@ export const WaterIrrigationScreen: React.FC<WaterIrrigationScreenProps> = ({
           <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-200/30 rounded-full blur-2xl pointer-events-none" />
           <div className="absolute top-2 left-3 bg-white/70 backdrop-blur-2xs px-2.5 py-1 rounded-full text-[11px] font-semibold text-amber-900/80 border border-amber-200/50 flex items-center gap-1.5 shadow-2xs">
             <Droplets className="w-3 h-3 text-sky-500" />
-            <span>Root-Zone Soil Sensor</span>
+            <span>Estimated Soil Moisture</span>
           </div>
 
           {/* SVG Illustration: Soil Cross-Section & Plant Sprout */}
@@ -355,7 +355,7 @@ export const WaterIrrigationScreen: React.FC<WaterIrrigationScreenProps> = ({
                   Soil Moisture
                 </span>
                 <div className="text-xs text-farmText-muted">
-                  Current Field Sensor Index
+                  Based on weather, soil type & crop water needs
                 </div>
               </div>
             </div>
@@ -505,7 +505,7 @@ export const WaterIrrigationScreen: React.FC<WaterIrrigationScreenProps> = ({
           </button>
 
           <p className="text-[11px] text-farmText-gray text-center mt-2.5">
-            Updated based on local weather forecast & telemetry.
+            Updated based on local weather forecast & crop water model.
           </p>
         </div>
 

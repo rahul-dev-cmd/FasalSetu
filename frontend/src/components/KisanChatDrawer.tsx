@@ -141,7 +141,7 @@ export const KisanChatDrawer: React.FC<KisanChatDrawerProps> = ({
         };
       } else if (lower.includes('irrigate') || lower.includes('water') || lower.includes('moisture') || lower.includes('pump') || lower.includes('sinchai') || lower.includes('paani')) {
         replyText = language === 'EN'
-          ? `Based on your soil sensors (58% moisture, balanced status) and upcoming rain forecast on Thursday, you do NOT need heavy irrigation today. A light surface wetting for 30 minutes tomorrow evening will maintain optimal root zone moisture.`
+          ? `Based on your estimated soil moisture (58%, balanced status) and upcoming rain forecast on Thursday, you do NOT need heavy irrigation today. A light surface wetting for 30 minutes tomorrow evening will maintain optimal root zone moisture.`
           : `आपके खेत की मिट्टी में 58% नमी (संतुलित) है और गुरुवार को बारिश का पूर्वानुमान है। आज भारी सिंचाई की आवश्यकता नहीं है। कल शाम 30 मिनट हल्की सिंचाई पर्याप्त रहेगी।`;
         cardType = 'irrigation';
         cardData = {
@@ -369,7 +369,7 @@ export const KisanChatDrawer: React.FC<KisanChatDrawerProps> = ({
                           {msg.cardData.status}
                         </span>
                         <span className="text-[11px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-full">
-                          Sensors Active
+                          Advisory Active
                         </span>
                       </div>
                       <div className="text-xs text-slate-700 pt-1 border-t border-teal-100">

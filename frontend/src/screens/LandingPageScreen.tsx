@@ -403,8 +403,8 @@ export const LandingPageScreen: React.FC<LandingPageScreenProps> = ({
               </div>
               <h4 className="text-lg font-bold text-slate-900">Water & Irrigation Advisory</h4>
               <p className="text-slate-600 text-sm mt-2 leading-relaxed">
-                Know exactly when and how much to irrigate based on real-time soil moisture sensors,
-                weather forecasts, and evapotranspiration data.
+                Know exactly when and how much to irrigate based on hyper-local weather,
+                soil water modeling, and evapotranspiration data.
               </p>
             </div>
 

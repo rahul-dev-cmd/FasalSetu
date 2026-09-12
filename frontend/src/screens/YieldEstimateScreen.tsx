@@ -431,7 +431,7 @@ export const YieldEstimateScreen: React.FC<YieldEstimateScreenProps> = ({
           </button>
 
           <p className="text-[11px] text-farmText-gray text-center mt-2.5">
-            Yield calculated from satellite indices, soil moisture, and mandi prices.
+            Yield calculated from ICAR agronomic benchmarks, sowing date, and mandi prices.
           </p>
         </div>
 

@@ -157,7 +157,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       id: 'yield',
       title: 'Yield Estimate',
       hindi: 'उपज अनुमान',
-      desc: 'Satellite yield forecast & mandi rate guide',
+      desc: 'Agronomic yield forecast & mandi rate guide',
       icon: TrendingUp,
     },
     {
